@@ -1,0 +1,381 @@
+
+import dotenv from 'dotenv';
+import express from 'express';
+import cors from 'cors';
+import nodemailer from 'nodemailer';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs/promises';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3002;
+
+const DATA_DIR = path.join(path.resolve(), 'data');
+const SUBMISSIONS_FILE = path.join(DATA_DIR, 'submissions.json');
+
+// Assurez-vous que le répertoire de données existe
+async function ensureDataDir() {
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    try {
+      await fs.access(SUBMISSIONS_FILE);
+    } catch {
+      await fs.writeFile(SUBMISSIONS_FILE, JSON.stringify([]));
+    }
+  } catch (error) {
+    console.error("Erreur d'initialisation du répertoire de données:", error);
+  }
+}
+ensureDataDir();
+
+// Middleware
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3002',
+    /\.vercel\.app$/,          // tous les domaines *.vercel.app
+    /\.onrender\.com$/,        // entre services Render
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Configuration de multer pour les fichiers
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Configuration du transporteur SMTP (LWS)
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'mail.dmplus-group.com',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: (process.env.SMTP_SECURE || 'true') === 'true', // true pour port 465 (SSL), false pour 587 (TLS/STARTTLS)
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false, // utile si le certificat SSL du serveur LWS est auto-signé
+  },
+});
+
+// Vérification de la connexion SMTP au démarrage
+transporter.verify((error) => {
+  if (error) {
+    console.error('❌ Connexion SMTP échouée :', error.message);
+  } else {
+    console.log('✅ Connexion SMTP établie avec succès.');
+  }
+});
+
+// Route pour envoyer l'email avec PDF
+app.post('/api/send-email', upload.single('convention_pdf'), async (req, res) => {
+  try {
+    const { _replyto, ...formData } = req.body;
+    const pdfFile = req.file;
+
+    if (!pdfFile) {
+      return res.status(400).json({ success: false, message: 'Fichier PDF manquant' });
+    }
+
+    // 1. EMAIL POUR L'ENTREPRISE (IMMÉDIAT - INFOS CLIENT + PDF)
+    const companyEmail = 'investment@dmplus-group.com';
+    let summaryHtml = `<h3 style="color: #6366f1; margin-top: 20px;">Informations du client :</h3>`;
+    
+    const categories = {
+      'Informations personnelles': ['nom', 'prenoms', 'dateNaissance', 'lieuNaissance', 'nationalite', 'typePiece', 'numeroPiece'],
+      'Coordonnées': ['email', 'telephonePrincipal', 'telephoneSecondaire', 'whatsapp', 'adresse', 'ville', 'paysResidence', 'codePostal'],
+      'Situation financière': ['profession', 'revenuMensuel', 'patrimoineEstime', 'origineFonds', 'objectifInvestissement'],
+      'Services souhaités': ['servicesSouhaites', 'frequenceSuivi', 'modeConsultation', 'membreBRVM', 'iban', 'depotInitial', 'instructionsSpeciales']
+    };
+
+    Object.entries(categories).forEach(([category, fields]) => {
+      summaryHtml += `<h4 style="color: #6366f1; margin-top: 20px;">${category}</h4><ul style="list-style: none; padding-left: 10px;">`;
+      fields.forEach(field => {
+        if (formData[field]) {
+          summaryHtml += `<li><strong>${field}:</strong> ${formData[field]}</li>`;
+        }
+      });
+      summaryHtml += '</ul>';
+    });
+
+    const mailCompanyOptions = {
+      from: companyEmail, // L'entreprise envoie depuis sa propre adresse
+      to: companyEmail, // L'entreprise reçoit immédiatement
+      subject: `NOUVELLE INSCRIPTION REÇUE : ${formData.nom || ''} ${formData.prenoms || ''} (${_replyto || 'email@fourni.com'})`,
+      html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h2 style="color: #d97706;">NOUVEAU CLIENT INSCRIT</h2>
+          <p><strong>Un client vient de terminer et soumettre son formulaire d'inscription.</strong></p>
+          <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 15px 0;">
+            <p style="margin: 0; font-weight: bold;">Informations complètes du client :</p>
+          </div>
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #6366f1;">
+            ${summaryHtml}
+          </div>
+          <p><strong>Informations de contact direct du client :</strong></p>
+          <ul style="list-style: none; padding-left: 10px;">
+            <li><strong>Email du client :</strong> ${_replyto || 'Non fourni'}</li>
+            <li><strong>Téléphone principal :</strong> ${formData.telephonePrincipal || 'Non fourni'}</li>
+            <li><strong>WhatsApp :</strong> ${formData.whatsapp || 'Non fourni'}</li>
+          </ul>
+          <p><strong>Document PDF contractuel joint à cet email.</strong></p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 12px; color: #666;">
+            <strong>Action requise :</strong> Contacter le client à l'adresse ${_replyto || 'email non fourni'} pour finaliser son inscription.
+          </p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: `Convention_${formData.nom || 'Client'}_DM_Invest.pdf`,
+          content: pdfFile.buffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    // 2. EMAIL POUR LE CLIENT (UNIQUEMENT MESSAGE - PAS DE PDF)
+    const mailClientOptions = {
+      from: companyEmail, // L'ENVOIE DEPUIS L'ENTREPRISE (investment@dmplus-group.com)
+      to: _replyto, // Envoyer au client (n'importe quel client)
+      subject: 'Votre inscription DM+ Invest a été reçue avec succès',
+      replyTo: companyEmail, // Le client répond à l'entreprise
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2 style="color: #DEB833;"> Félicitations !</h2>
+          <p><strong>Votre inscription DM+ Invest a été soumise avec succès.</strong></p>
+          <p>Nous vous remercions de votre confiance. Votre dossier est maintenant entre les mains de notre équipe qui va le traiter dans les plus brefs délais.</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; border-left: 4px solid #DEB833; margin: 20px 0;">
+            <h3 style="color: #332E32; margin-top: 0;"> Prochaines étapes :</h3>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+              <li>Notre équipe examine votre dossier</li>
+              <li>Nous vous contacterons par téléphone ou email</li>
+              <li>Finalisation de votre compte d'investissement</li>
+            </ol>
+          </div>
+          <p><strong>Votre convention de compte titres vous sera envoyée par email séparément après validation.</strong></p>
+          <p>Pour toute question, notre service client est à votre disposition :</p>
+          <ul style="list-style: none; padding-left: 0;">
+            <li><strong>Email :</strong> investment@dmplus-group.com</li>
+            <li><strong>Téléphone :</strong> + 33 829 58 06 / 221 76 663 82 19</li>
+          </ul>
+          <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <strong>Cordialement,<br>L'équipe DM+ Invest</strong>
+          </p>
+        </div>
+      `
+      // PAS DE PIÈCE JOINTE POUR LE CLIENT
+    };
+
+    // 3. SAUVEGARDE DE LA SOUMISSION (EN PREMIER)
+    try {
+      const submissionsData = await fs.readFile(SUBMISSIONS_FILE, 'utf-8');
+      const submissions = JSON.parse(submissionsData || '[]');
+      
+      const newSubmission = {
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        ...formData,
+      };
+      
+      submissions.unshift(newSubmission);
+      await fs.writeFile(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2));
+    } catch (fsError) {
+      console.error("Erreur lors de la sauvegarde de la soumission:", fsError);
+    }
+
+    // 4. ENVOI DES DEUX EMAILS EN PARALLÈLE
+    try {
+      await Promise.all([
+        transporter.sendMail(mailClientOptions),
+        transporter.sendMail(mailCompanyOptions)
+      ]);
+      console.log('Success: Confirmation envoyée au client ET copie envoyée à l\'entreprise.');
+    } catch (emailError) {
+      console.error("Erreur d'envoi d'email (mais la soumission est sauvegardée):", emailError);
+      // On continue pour ne pas bloquer le client si l'email échoue
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Soumission enregistrée' 
+    });
+
+
+
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de l\'email:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de l\'envoi de l\'email',
+      error: error.message 
+    });
+  }
+});
+
+// Route pour recevoir la réponse du client et la transmettre à l'entreprise
+app.post('/api/reply-email', async (req, res) => {
+  try {
+    const { clientEmail, clientName, subject, message } = req.body;
+
+    // Validation des champs
+    if (!clientEmail || !clientEmail.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Adresse email invalide',
+        error: 'Veuillez fournir une adresse email valide',
+      });
+    }
+
+    if (!message || message.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Message vide',
+        error: "Veuillez écrire un message avant d'envoyer",
+      });
+    }
+
+    const companyEmail = 'investment@dmplus-group.com';
+    const replySubject = subject
+      ? `Réponse client : ${subject}`
+      : `Message de ${clientName || clientEmail}`;
+
+    // Email transmis à l'entreprise avec le message du client
+    const mailToCompany = {
+      from: companyEmail,
+      to: companyEmail,
+      replyTo: clientEmail,
+      subject: replySubject,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #332E32 0%, #DEB833 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+            <h2 style="color: #fff; margin: 0; font-size: 22px;">💬 Message d'un client</h2>
+            <p style="color: rgba(255,255,255,0.85); margin: 6px 0 0;">Réponse reçue via le portail DM+ Invest</p>
+          </div>
+          <div style="background: #f8fafc; padding: 25px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
+            <div style="background: #fff; padding: 15px 20px; border-radius: 8px; border-left: 4px solid #DEB833; margin-bottom: 20px;">
+              <p style="margin: 0; font-size: 14px; color: #666;">Informations du client</p>
+              <p style="margin: 6px 0 0; font-size: 16px; font-weight: bold; color: #332E32;">${clientName || 'Nom non fourni'}</p>
+              <p style="margin: 2px 0 0; color: #6366f1;">
+                <a href="mailto:${clientEmail}" style="color: #6366f1; text-decoration: none;">${clientEmail}</a>
+              </p>
+            </div>
+            <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 20px;">
+              <h3 style="color: #332E32; margin-top: 0; font-size: 15px;">📩 Message du client :</h3>
+              <p style="white-space: pre-wrap; color: #444; line-height: 1.7; margin: 0;">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+            </div>
+            <div style="background: #fef3c7; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+              <p style="margin: 0; font-size: 13px; color: #92400e;">
+                <strong>Action requise :</strong> Répondez directement à cet email pour contacter
+                <strong>${clientName || 'le client'}</strong> à l'adresse
+                <a href="mailto:${clientEmail}" style="color: #92400e;">${clientEmail}</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+      `,
+      text: `Message de ${clientName || clientEmail} (${clientEmail})\n\n${message}\n\nRépondre à : ${clientEmail}`,
+    };
+
+    // Email de confirmation envoyé au client
+    const mailToClient = {
+      from: companyEmail,
+      to: clientEmail,
+      replyTo: companyEmail,
+      subject: 'Votre message a bien été reçu - DM+ Invest',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #332E32 0%, #DEB833 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+            <h2 style="color: #fff; margin: 0; font-size: 22px;">✅ Message bien reçu</h2>
+            <p style="color: rgba(255,255,255,0.85); margin: 6px 0 0;">DM+ Invest vous confirme la réception</p>
+          </div>
+          <div style="background: #f8fafc; padding: 25px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
+            <p>Bonjour <strong>${clientName || ''}</strong>,</p>
+            <p>Nous avons bien reçu votre message. Notre équipe vous répondra dans les meilleurs délais.</p>
+            <div style="background: #fff; padding: 15px 20px; border-radius: 8px; border-left: 4px solid #DEB833; margin: 20px 0;">
+              <p style="margin: 0; font-size: 13px; color: #666;">Votre message :</p>
+              <p style="white-space: pre-wrap; color: #444; margin: 8px 0 0; font-style: italic;">"${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}"</p>
+            </div>
+            <p>Pour toute urgence :</p>
+            <ul style="list-style: none; padding-left: 0;">
+              <li><strong>Email :</strong> investment@dmplus-group.com</li>
+              <li><strong>Téléphone :</strong> + 33 829 58 06 / 221 76 663 82 19</li>
+            </ul>
+            <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <strong>Cordialement,<br>L'équipe DM+ Invest</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Bonjour ${clientName || ''},\n\nNous avons bien reçu votre message.\n\nCordialement,\nL'équipe DM+ Invest`,
+    };
+
+    await Promise.all([
+      transporter.sendMail(mailToCompany),
+      transporter.sendMail(mailToClient),
+    ]);
+
+    console.log(`Reply-email: message de ${clientEmail} transmis à ${companyEmail}`);
+    res.status(200).json({ success: true, message: 'Message envoyé avec succès.' });
+
+  } catch (error) {
+    console.error('Erreur /reply-email:', error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de l'envoi du message",
+      error: error.message,
+    });
+  }
+});
+
+// Servir les fichiers statiques du dossier "dist" (généré par npm run build)
+const __dirname = path.resolve();
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Route de test pour l'API
+app.get('/api/health', (req, res) => {
+  res.json({ message: 'Serveur DM+ Invest opérationnel' });
+});
+
+// Route pour récupérer les soumissions pour l'administration
+app.get('/api/admin/submissions', async (req, res) => {
+  try {
+    const submissionsData = await fs.readFile(SUBMISSIONS_FILE, 'utf-8');
+    const submissions = JSON.parse(submissionsData || '[]');
+    res.status(200).json({ success: true, data: submissions });
+  } catch (error) {
+    console.error('Erreur lors de la lecture des soumissions:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des données' });
+  }
+});
+
+// Route par défaut qui sert l'application React
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+/*
+================================================================================
+CONFIGURATION SMTP LWS
+================================================================================
+Le transporteur utilise directement le serveur SMTP de LWS.
+Variables d'environnement requises dans le fichier .env :
+
+  EMAIL_USER=investment@dmplus-group.com
+  EMAIL_PASS=<mot_de_passe>
+  SMTP_HOST=mail.dmplus-group.com   (ou ssl0.ovh.net selon LWS)
+  SMTP_PORT=465                      (SSL) ou 587 (STARTTLS)
+  SMTP_SECURE=true                   (true pour 465, false pour 587)
+
+Si le SMTP_HOST n'est pas défini, la valeur par défaut 'mail.dmplus-group.com'
+est utilisée. Ajustez selon les paramètres fournis par LWS dans votre panel.
+================================================================================
+*/
+
+app.listen(PORT, () => {
+  console.log(`Serveur démarré sur le port ${PORT}`);
+});
