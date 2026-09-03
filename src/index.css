@@ -152,6 +152,26 @@
     background: #f1f5f9;
   }
 
+  /* Scrollbar dédiée aux listes déroulantes */
+  .select-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #deb833 #f8fafc;
+  }
+  .select-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .select-scrollbar::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+  }
+  .select-scrollbar::-webkit-scrollbar-thumb {
+    background: #deb833;
+    border-radius: 4px;
+  }
+  .select-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #c49f1f;
+  }
+
   /* Container scroll */
   .scroll-container {
     max-height: calc(100vh - 280px);

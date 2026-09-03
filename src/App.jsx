@@ -1,5 +1,5 @@
 import {
-  ArrowLeft, ArrowRight, Check, Crown, Lock, Shield, Sparkles, Target, User, Wallet, Phone, MapPin, Building2, CreditCard, Briefcase, Star, TrendingUp, Users, Quote, ChevronDown, ExternalLink, Globe, Layers, FileText, Layout, Scale, Zap
+  ArrowLeft, ArrowRight, Check, Crown, Lock, Shield, Sparkles, Target, User, Wallet, Phone, MapPin, Building2, CreditCard, Briefcase, Star, TrendingUp, Users, Quote, ChevronDown, ExternalLink, Globe, Layers, FileText, Layout, Scale, Zap, Search, X
 } from "lucide-react";
 import React, { Fragment, useState, useEffect, useRef, Children } from "react";
 import PrivacyPolicy from "./PrivacyPolicy";
@@ -542,130 +542,251 @@ function dialFromPaysResidence(pays) {
   return null;
 }
 
-const citiesByCountry = {
-  "Sénégal": ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Touba", "Rufisque", "Mbour", "Diourbel", "Kaolack", "Kolda", "Tambacounda", "Fatick", "Autre"],
-  "Côte d'Ivoire": ["Abidjan", "Bouaké", "Daloa", "Yamoussoukro", "San-Pédro", "Korhogo", "Man", "Divo", "Gagnoa", "Abengourou", "Autre"],
-  "Mali": ["Bamako", "Sikasso", "Mopti", "Koutiala", "Kayes", "Ségou", "Gao", "Tombouctou", "Autre"],
-  "Burkina Faso": ["Ouagadougou", "Bobo-Dioulasso", "Koudougou", "Banfora", "Ouahigouya", "Dédougou", "Kaya", "Autre"],
-  "Bénin": ["Cotonou", "Porto-Novo", "Parakou", "Djougou", "Bohicon", "Kandi", "Abomey", "Natitingou", "Autre"],
-  "Togo": ["Lomé", "Sokodé", "Kara", "Kpalimé", "Atakpamé", "Dapaong", "Tsévié", "Autre"],
-  "Niger": ["Niamey", "Zinder", "Maradi", "Agadez", "Tahoua", "Dosso", "Diffa", "Autre"],
-  "Guinée": ["Conakry", "Nzérékoré", "Kankan", "Kindia", "Siguiri", "Labé", "Boké", "Autre"],
-  "Cameroun": ["Douala", "Yaoundé", "Garoua", "Bamenda", "Maroua", "Bafoussam", "Autre"],
-  "Gabon": ["Libreville", "Port-Gentil", "Franceville", "Oyem", "Moanda", "Autre"],
-  "France": ["Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Strasbourg", "Montpellier", "Bordeaux", "Lille", "Autre"],
-  "États-Unis": ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "Autre"],
-  "Canada": ["Toronto", "Montréal", "Vancouver", "Calgary", "Edmonton", "Ottawa", "Autre"]
-};
+const SGI_LIST = [
+  "ABCO Bourse",
+  "Actis Bourse",
+  "Africabourse",
+  "Africaine de Gestion et d'Intermédiation (AGI)",
+  "Atlantique Finance",
+  "Attijari Securities West Africa",
+  "BICI Bourse",
+  "BIIC Financial Services",
+  "BNI Finances",
+  "BOA Capital Securities",
+  "Bridge Securities",
+  "BSIC Capital",
+  "CGF Bourse",
+  "CIFA Bourse",
+  "Coris Bourse",
+  "EDC Investment Corporation",
+  "Everest Finance",
+  "Finance Gestion Intermédiation (FGI)",
+  "Global Capital",
+  "Hudson & Cie",
+  "Images Finances Internationales",
+  "Impaxis Securities",
+  "Invictus Capital & Finance",
+  "Macari",
+  "Mali Bourse",
+  "NSIA Finance",
+  "Phoenix Capital Management",
+  "SA2IF",
+  "SBIF",
+  "SGI Bénin",
+  "SGI Mali",
+  "SGI Niger",
+  "SGI Togo",
+  "Sirius Capital",
+  "Société Générale Capital Securities WA",
+  "United Capital for Africa",
+  "Autre"
+];
 
-const postalCodesByCity = {
-  // --- SÉNÉGAL ---
-  "Dakar": ["Dakar Plateau : 10000", "Médina : 11000", "Fass - Colobane : 11100", "Point E - Amitié : 11200", "Grand Dakar : 11300", "Sicap Liberté : 11400", "HLM : 11500", "Hann Bel-Air : 12000", "Grand Yoff : 12100", "Parcelles Assainies : 12200", "Yoff : 13000", "Ngor - Almadies : 13100", "Ouakam : 13200", "Rufisque : 14000", "Guédiawaye : 15000", "Pikine : 16000", "Keur Massar : 17000", "Autre"],
-  "Thiès": ["21000", "Autre"],
-  "Saint-Louis": ["32000", "Autre"],
-  "Ziguinchor": ["27000", "Autre"],
-  "Touba": ["25000", "Autre"],
-  "Rufisque": ["14000", "Autre"],
-  "Mbour": ["23000", "Autre"],
-  "Diourbel": ["20000", "Autre"],
-  "Kaolack": ["19000", "Autre"],
-  "Kolda": ["28000", "Autre"],
-  "Tambacounda": ["31000", "Autre"],
-  "Fatick": ["22000", "Autre"],
-
-  // --- CÔTE D'IVOIRE ---
-  "Abidjan": ["Plateau : 01 BP", "Treichville : 02 BP", "Adjamé : 03 BP", "Attécoubé : 04 BP", "Koumassi : 05 BP", "Marcory : 26 BP", "Port-Bouët : 07 BP", "Cocody : 08 BP", "Yopougon : 21 BP", "Abobo : 13 BP", "Autre"],
-  "Bouaké": ["01 BP", "02 BP", "Autre"],
-  "Yamoussoukro": ["01 BP", "02 BP", "Autre"],
-  
-  // --- MALI ---
-  "Bamako": ["Commune I : E2301", "Commune II : E2302", "Commune III : E2303", "Commune IV : E2304", "Commune V : E2305", "Commune VI : E2306", "Autre"],
-  
-  // --- BURKINA FASO ---
-  "Ouagadougou": ["01 BP", "02 BP", "03 BP", "04 BP", "05 BP", "06 BP", "Autre"],
-  "Bobo-Dioulasso": ["01 BP", "02 BP", "Autre"],
-
-  // --- BÉNIN ---
-  "Cotonou": ["01 BP", "02 BP", "03 BP", "04 BP", "05 BP", "06 BP", "07 BP", "Autre"],
-
-  // --- TOGO ---
-  "Lomé": ["Lomé : 01 BP", "Autre"],
-
-  // --- NIGER ---
-  "Niamey": ["Niamey I", "Niamey II", "Niamey III", "Niamey IV", "Niamey V", "Autre"],
-
-  // --- GUINÉE ---
-  "Conakry": ["Kaloum", "Dixinn", "Matam", "Ratoma", "Matoto", "Autre"],
-
-  // --- CAMEROUN ---
-  "Douala": ["Douala I", "Douala II", "Douala III", "Douala IV", "Douala V", "Douala VI", "Autre"],
-  "Yaoundé": ["Yaoundé I", "Yaoundé II", "Yaoundé III", "Yaoundé IV", "Yaoundé V", "Yaoundé VI", "Yaoundé VII", "Autre"],
-
-  // --- GABON ---
-  "Libreville": ["1er Arrondissement", "2e Arrondissement", "3e Arrondissement", "4e Arrondissement", "5e Arrondissement", "6e Arrondissement", "Autre"],
-
-  // --- AUTRES CAPITALS / VILLES MAJEURES ---
-  "Paris": ["75001", "75002", "75003", "75004", "75005", "75006", "75007", "75008", "75009", "75010", "75011", "75012", "75013", "75014", "75015", "75016", "75017", "75018", "75019", "75020", "Autre"]
-};
-
-const CustomSelect = ({ name, value, onChange, className = "", children }) => {
+const CustomSelect = ({ name, value, onChange, className = "", searchPlaceholder = "Rechercher...", children }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const selectRef = useRef(null);
-  
+  const searchInputRef = useRef(null);
+  const listRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (selectRef.current && !selectRef.current.contains(event.target)) {
         setIsOpen(false);
+        setSearchTerm("");
+        setHighlightedIndex(-1);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const allOptions = Children.toArray(children).filter(child => child.type === 'option').map(child => ({
-    value: child.props.value,
-    label: child.props.children
-  }));
-  
+  const allOptions = Children.toArray(children)
+    .filter(child => child && child.type === 'option')
+    .map(child => ({
+      value: child.props.value,
+      label: child.props.children
+    }));
+
   const placeholderOption = allOptions.find(opt => opt.value === "");
   const options = allOptions.filter(opt => opt.value !== "");
   const selectedOption = options.find(opt => String(opt.value) === String(value));
 
+  // Normalisation sans accents et en minuscules pour la recherche
+  const normalizeStr = (str) =>
+    String(str || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  const filteredOptions = options.filter(opt => {
+    if (!searchTerm.trim()) return true;
+    const term = normalizeStr(searchTerm);
+    const label = normalizeStr(opt.label);
+    const val = normalizeStr(opt.value);
+    return label.includes(term) || val.includes(term);
+  });
+
+  const handleSelect = (optVal) => {
+    onChange({ target: { name, value: optVal, type: 'select-one' } });
+    setIsOpen(false);
+    setSearchTerm("");
+    setHighlightedIndex(-1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!isOpen) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+        e.preventDefault();
+        setIsOpen(true);
+      }
+      return;
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setIsOpen(false);
+      setSearchTerm("");
+      setHighlightedIndex(-1);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev > 0 ? prev - 1 : filteredOptions.length - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        handleSelect(filteredOptions[highlightedIndex].value);
+      } else if (filteredOptions.length === 1) {
+        handleSelect(filteredOptions[0].value);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 50);
+      if (value) {
+        const idx = filteredOptions.findIndex(opt => String(opt.value) === String(value));
+        if (idx >= 0) setHighlightedIndex(idx);
+      }
+    } else {
+      setSearchTerm("");
+      setHighlightedIndex(-1);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (highlightedIndex >= 0 && listRef.current) {
+      const items = listRef.current.querySelectorAll('.custom-select-option');
+      if (items[highlightedIndex]) {
+        items[highlightedIndex].scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [highlightedIndex]);
+
+  const showSearch = options.length > 5;
+
   return (
     <div ref={selectRef} className={`relative w-full ${className}`}>
       <div 
-        className={`ui-input-elite w-full flex justify-between items-center cursor-pointer ${!value ? 'text-slate-400' : ''}`}
+        className={`ui-input-elite w-full flex justify-between items-center cursor-pointer select-none ${!value ? 'text-slate-400' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
       >
         <span className="truncate">{selectedOption ? selectedOption.label : (placeholderOption ? placeholderOption.label : "Sélectionner...")}</span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} />
       </div>
+
       {isOpen && (
-        <div className="absolute z-[100] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
-          {options.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-slate-400 text-center">Aucune option</div>
-          ) : (
-            options.map((opt, i) => (
-              <div 
-                key={i} 
-                className={`px-4 py-3 cursor-pointer text-sm transition-colors border-b border-slate-50 last:border-0 hover:bg-slate-50 ${String(value) === String(opt.value) ? 'bg-slate-50 text-[#deb833] font-medium' : 'text-slate-700'}`}
-                onClick={() => {
-                  onChange({ target: { name, value: opt.value, type: 'select-one' } });
-                  setIsOpen(false);
+        <div 
+          className="absolute z-[100] left-0 right-0 w-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col"
+          style={{ maxHeight: '320px' }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          {showSearch && (
+            <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0 z-10 flex items-center gap-2">
+              <Search className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setHighlightedIndex(0);
                 }}
-              >
-                {opt.label}
-              </div>
-            ))
+                onKeyDown={handleKeyDown}
+                placeholder={searchPlaceholder}
+                className="w-full bg-transparent text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none py-1"
+                onClick={(e) => e.stopPropagation()}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchTerm("");
+                    if (searchInputRef.current) searchInputRef.current.focus();
+                  }}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 rounded transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           )}
+
+          <div 
+            ref={listRef}
+            className="overflow-y-auto select-scrollbar flex-1"
+            style={{ overscrollBehavior: 'contain', maxHeight: '260px' }}
+            onWheel={(e) => e.stopPropagation()}
+          >
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-4 text-xs text-slate-400 text-center italic">
+                Aucun résultat trouvé
+              </div>
+            ) : (
+              filteredOptions.map((opt, i) => {
+                const isSelected = String(value) === String(opt.value);
+                const isHighlighted = highlightedIndex === i;
+                return (
+                  <div 
+                    key={`${opt.value}-${i}`} 
+                    className={`custom-select-option px-4 py-2.5 cursor-pointer text-xs sm:text-[13px] font-medium transition-colors border-b border-slate-50 last:border-0 flex items-center justify-between ${
+                      isSelected 
+                        ? 'bg-[#deb833]/10 text-[#deb833] font-bold' 
+                        : isHighlighted 
+                          ? 'bg-slate-100 text-slate-900' 
+                          : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                    onClick={() => handleSelect(opt.value)}
+                    onMouseEnter={() => setHighlightedIndex(i)}
+                  >
+                    <span className="truncate">{opt.label}</span>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-[#deb833] shrink-0 ml-2" />}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
-      <select name={name} value={value} onChange={onChange} className="hidden">
+
+      <select name={name} value={value} onChange={onChange} className="hidden" tabIndex={-1}>
         {children}
       </select>
     </div>
   );
 };
+
 
 function App() {
   const pathname = window.location.pathname.toLowerCase();
@@ -707,7 +828,7 @@ function App() {
       depotInitial: "", instructionsSpeciales: "", accepteConditions: false,
       accepteConditions2: false, accepteConditions3: false, accepteConditions4: false,
       luConditionsStep1: false, selectedOffer: "", modePaiement: "virement",
-      hasSGIAccount: "", wantsSGIAssistance: "", sgiPreferenceType: "", selectedSGI: "",
+      hasSGIAccount: "", wantsSGIAssistance: "", sgiPreferenceType: "", selectedSGI: "", selectedSGICustom: "",
       typePieceCustom: "", typePieceAutreSaisie: ""
     };
   });
@@ -890,8 +1011,9 @@ function App() {
 
     return {
       ...formData,
-      ville: formData.ville === "Autre" ? formData.villeCustom : formData.ville,
+      ville: formData.ville,
       codePostal: formData.codePostal === "Autre" ? formData.codePostalCustom : formData.codePostal,
+      selectedSGI: formData.selectedSGI === "Autre" ? formData.selectedSGICustom : formData.selectedSGI,
       typePiece: formData.typePiece === "Autre" 
         ? (formData.typePieceCustom === "Autre" ? formData.typePieceAutreSaisie : formData.typePieceCustom) 
         : formData.typePiece,
@@ -1524,79 +1646,37 @@ function App() {
                                <option value="Inde">{t.paysList.inde}</option>
                                <option value="Brésil">{t.paysList.bresil}</option>
                                <option value="Argentine">{t.paysList.argentine}</option>
-                               <option value="Mexique">{t.paysList.mexique}</option>
-                               <option value="Australie">{t.paysList.australie}</option>
                                <option value="Autre">{t.paysList.autre}</option>
                              </CustomSelect>
                            </div>
                            <div className="space-y-1">
-                             <label className="ui-field-label-elite">{t.ville}</label>
-                             {citiesByCountry[formData.paysResidence] ? (
-                               <CustomSelect
-                                 name="ville"
-                                 value={formData.ville}
-                                 onChange={(e) => {
-                                   handleInputChange(e);
-                                   setFormData(prev => ({ ...prev, codePostal: "", codePostalCustom: "" }));
-                                 }}
-                               >
-                                 <option value="">{t.select}</option>
-                                 {citiesByCountry[formData.paysResidence].map(city => (
-                                   <option key={city} value={city}>{city}</option>
-                                 ))}
-                               </CustomSelect>
-                             ) : (
-                               <input type="text" name="ville" value={formData.ville} onChange={handleInputChange} onClick={handleRadioClick} className="ui-input-elite" placeholder="Ex: Dakar" />
-                             )}
-                             {formData.ville === "Autre" && (
-                               <input 
-                                 type="text" 
-                                 name="villeCustom" 
-                                 value={formData.villeCustom || ""}
-                                 className="ui-input-elite mt-2" 
-                                 placeholder="Précisez votre ville" 
-                                 onChange={handleInputChange}
-                               />
-                             )}
-                           </div>
-                        </div>
+                              <label className="ui-field-label-elite">{t.ville}</label>
+                              <input 
+                                type="text" 
+                                name="ville" 
+                                value={formData.ville} 
+                                onChange={handleInputChange} 
+                                onClick={handleRadioClick} 
+                                className="ui-input-elite" 
+                                placeholder={lang === 'EN' ? "e.g. Dakar, Abidjan, Paris..." : "Ex: Dakar, Abidjan, Paris..."} 
+                              />
+                            </div>
+                         </div>
                         <div className="space-y-1">
                            <label className="ui-field-label-elite">{t.adresse}</label>
                            <input type="text" name="adresse" value={formData.adresse} onChange={handleInputChange} onClick={handleRadioClick} className="ui-input-elite" placeholder="Ex: 12 Rue des Almadies, Dakar" />
                         </div>
                         <div className="space-y-1">
                            <label className="ui-field-label-elite">{t.codePostal}</label>
-                           {postalCodesByCity[formData.ville] ? (
-                             <div className="space-y-2">
-                               <CustomSelect 
-                                 name="codePostal" 
-                                 value={formData.codePostal} 
-                                 onChange={(e) => {
-                                   handleInputChange(e);
-                                   if(e.target.value !== 'Autre') {
-                                     setFormData(prev => ({...prev, codePostalCustom: ""}));
-                                   }
-                                 }}
-                               >
-                                 <option value="">Sélectionnez le code postal...</option>
-                                 {postalCodesByCity[formData.ville].map(cp => (
-                                   <option key={cp} value={cp}>{cp}</option>
-                                 ))}
-                               </CustomSelect>
-                               {formData.codePostal === 'Autre' && (
-                                 <input 
-                                   type="text" 
-                                   name="codePostalCustom" 
-                                   value={formData.codePostalCustom || ""}
-                                   onChange={handleInputChange} 
-                                   className="ui-input-elite" 
-                                   placeholder="Précisez votre code postal" 
-                                 />
-                               )}
-                             </div>
-                           ) : (
-                             <input type="text" name="codePostal" value={formData.codePostal} onChange={handleInputChange} onClick={handleRadioClick} className="ui-input-elite" placeholder="Ex: BP 5400" />
-                           )}
+                           <input 
+                             type="text" 
+                             name="codePostal" 
+                             value={formData.codePostal} 
+                             onChange={handleInputChange} 
+                             onClick={handleRadioClick} 
+                             className="ui-input-elite" 
+                             placeholder={lang === 'EN' ? "e.g. 10000, BP 25, 75008..." : "Ex: 10000, BP 25, 75008..."} 
+                           />
                         </div>
                       </div>
                     )}
@@ -1926,15 +2006,20 @@ function App() {
                                 onChange={handleInputChange}
                               >
                                 <option value="">Sélectionner une SGI...</option>
-                                {[
-                                  "BOA Capital Securities", "Bridge Securities", "BICI Bourse", "CGF Bourse",
-                                  "Coris Bourse", "Everest Finance", "FGI (Finance Gestion et Intermédiation)",
-                                  "Global Capital", "Hudson & Cie", "IMPAXIS Securities", "Invictus Capital & Finance",
-                                  "Macari", "NSIA Finance", "SGI Mali", "SGI Togo", "Autre"
-                                ].map(sgi => (
+                                {SGI_LIST.map(sgi => (
                                   <option key={sgi} value={sgi}>{sgi}</option>
                                 ))}
                               </CustomSelect>
+                              {formData.selectedSGI === "Autre" && (
+                                <input 
+                                  type="text" 
+                                  name="selectedSGICustom" 
+                                  value={formData.selectedSGICustom || ""}
+                                  className="ui-input-elite mt-2" 
+                                  placeholder="Précisez votre SGI" 
+                                  onChange={handleInputChange}
+                                />
+                              )}
                             </div>
                           )}
                         </div>
