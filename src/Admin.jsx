@@ -386,10 +386,14 @@ const Dashboard = ({ onLogout }) => {
         throw new Error(`Erreur HTTP ${response.status} - ${response.statusText}`);
       }
       const result = await response.json();
-      if (result.success) {
-        setSubmissions(result.data);
+      if (Array.isArray(result)) {
+        setSubmissions(result);
+      } else if (result && result.success !== undefined) {
+        // Fallback in case backend structure changes back
+        if (result.success) setSubmissions(result.data);
+        else setFetchError('Le serveur a retourné une erreur : ' + (result.message || 'inconnue'));
       } else {
-        setFetchError('Le serveur a retourné une erreur : ' + (result.message || 'inconnue'));
+        setFetchError('Le serveur a retourné une erreur : ' + (result.message || 'Format de réponse invalide (attendu: tableau)'));
       }
     } catch (err) {
       console.error('Erreur lors de la récupération des données:', err);
