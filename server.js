@@ -342,7 +342,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Route pour récupérer les soumissions pour l'administration
-app.get('/api/admin/submissions', async (req, res) => {
+app.get('/api/v1/submissions', async (req, res) => {
   try {
     const submissionsData = await fs.readFile(SUBMISSIONS_FILE, 'utf-8');
     const submissions = JSON.parse(submissionsData || '[]');

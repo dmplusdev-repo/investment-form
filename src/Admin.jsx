@@ -379,7 +379,7 @@ const Dashboard = ({ onLogout }) => {
     setLoading(true);
     setFetchError('');
     try {
-      const url = `${API_BASE}/api/admin/submissions`;
+      const url = `https://dmplus-investment-back.onrender.com/api/v1/submissions`;
       console.log('[Admin] Fetch URL:', url);
       const response = await fetch(url);
       if (!response.ok) {
@@ -393,7 +393,7 @@ const Dashboard = ({ onLogout }) => {
       }
     } catch (err) {
       console.error('Erreur lors de la récupération des données:', err);
-      setFetchError(`Impossible de contacter le serveur.\n\nDétail : ${err.message}\n\nURL appelée : ${API_BASE}/api/admin/submissions`);
+      setFetchError(`Impossible de contacter le serveur.\n\nDétail : ${err.message}\n\nURL appelée : https://dmplus-investment-back.onrender.com/api/v1/submissions`);
     } finally {
       setLoading(false);
     }
