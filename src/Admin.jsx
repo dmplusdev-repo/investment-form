@@ -707,6 +707,17 @@ const Dashboard = ({ onLogout }) => {
               {submissions.map((sub, index) => {
                 const offerStyle = getOfferColor(sub.selectedOffer);
                 const isExpanded = expandedId === sub.id;
+                
+                const rawDate = sub.createdAt || sub.date;
+                let dateObj = new Date();
+                if (rawDate) {
+                  if (Array.isArray(rawDate)) {
+                    const [y, m, d, h=0, min=0, s=0] = rawDate;
+                    dateObj = new Date(y, m - 1, d, h, min, s);
+                  } else {
+                    dateObj = new Date(rawDate);
+                  }
+                }
 
                 return (
                   <div key={sub.id} style={{
@@ -774,10 +785,10 @@ const Dashboard = ({ onLogout }) => {
                       <div style={{ textAlign: 'right', flexShrink: 0, display: 'none', paddingRight: '20px' }} className="md-visible">
                         <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151', fontWeight: 600 }}>
                           <Calendar style={{ width: '14px', height: '14px', color: '#9ca3af' }} />
-                          {new Date(sub.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          {dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                         <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>
-                          {new Date(sub.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          {dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
 
