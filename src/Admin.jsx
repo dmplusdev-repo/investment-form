@@ -379,7 +379,8 @@ const Dashboard = ({ onLogout }) => {
     setLoading(true);
     setFetchError('');
     try {
-      const url = `https://dmplus-investment-back.onrender.com/api/v1/submissions`;
+      const baseUrl = API_BASE || 'https://dmplus-investment-back.onrender.com';
+      const url = `${baseUrl}/api/v1/submissions`;
       console.log('[Admin] Fetch URL:', url);
       const response = await fetch(url);
       if (!response.ok) {
@@ -397,9 +398,36 @@ const Dashboard = ({ onLogout }) => {
       }
     } catch (err) {
       console.error('Erreur lors de la récupération des données:', err);
-      setFetchError(`Impossible de contacter le serveur.\n\nDétail : ${err.message}\n\nURL appelée : https://dmplus-investment-back.onrender.com/api/v1/submissions`);
+      const baseUrl = API_BASE || 'https://dmplus-investment-back.onrender.com';
+      setFetchError(`Impossible de contacter le serveur.\n\nDétail : ${err.message}\n\nURL appelée : ${baseUrl}/api/v1/submissions`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateStatus = async (id, newStatus) => {
+    try {
+      const baseUrl = API_BASE || 'https://dmplus-investment-back.onrender.com';
+      const url = `${baseUrl}/api/v1/submissions/${id}/status`;
+      
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}`);
+      }
+      
+      setSubmissions(submissions.map(sub => 
+        sub.id === id ? { ...sub, status: newStatus } : sub
+      ));
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du statut:', err);
+      alert('Erreur lors de la mise à jour du statut');
     }
   };
 
@@ -425,6 +453,20 @@ const Dashboard = ({ onLogout }) => {
       return { bg: '#111827', color: '#ffffff', border: '#111827' }; // Dark
     }
     return { bg: '#f3f4f6', color: '#4b5563', border: '#d1d5db' };
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'EN COURS':
+        return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' }; // Blue
+      case 'VALIDÉ':
+        return { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }; // Green
+      case 'REJETÉ':
+        return { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }; // Red
+      case 'NOUVEAU':
+      default:
+        return { bg: '#f3f4f6', color: '#4b5563', border: '#d1d5db' }; // Gray
+    }
   };
 
   return (
@@ -726,6 +768,36 @@ const Dashboard = ({ onLogout }) => {
                       }}>
                         {getOfferLabel(sub.selectedOffer)}
                       </span>
+
+                      {/* Statut */}
+                      <select
+                        value={sub.status || 'NOUVEAU'}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          updateStatus(sub.id, e.target.value);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          flexShrink: 0, padding: '8px 32px 8px 16px', marginLeft: '12px',
+                          background: getStatusColor(sub.status || 'NOUVEAU').bg,
+                          border: `1px solid ${getStatusColor(sub.status || 'NOUVEAU').border}`,
+                          borderRadius: '24px', fontSize: '12px', fontWeight: 700,
+                          color: getStatusColor(sub.status || 'NOUVEAU').color,
+                          letterSpacing: '0.5px', textTransform: 'uppercase',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                          cursor: 'pointer', appearance: 'none',
+                          outline: 'none',
+                          backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23${getStatusColor(sub.status || 'NOUVEAU').color.replace('#', '')}%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 12px top 50%',
+                          backgroundSize: '10px auto',
+                        }}
+                      >
+                        <option value="NOUVEAU">Nouveau</option>
+                        <option value="EN COURS">En cours</option>
+                        <option value="VALIDÉ">Validé</option>
+                        <option value="REJETÉ">Rejeté</option>
+                      </select>
 
                       {/* Chevron */}
                       <div style={{ flexShrink: 0, marginLeft: '12px', color: '#9ca3af', transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}>

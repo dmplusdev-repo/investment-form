@@ -353,6 +353,34 @@ app.get('/api/v1/submissions', async (req, res) => {
   }
 });
 
+// Route pour mettre à jour le statut d'une soumission
+app.patch('/api/v1/submissions/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Le statut est requis' });
+    }
+
+    const submissionsData = await fs.readFile(SUBMISSIONS_FILE, 'utf-8');
+    let submissions = JSON.parse(submissionsData || '[]');
+    
+    const index = submissions.findIndex(s => s.id === id);
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: 'Soumission non trouvée' });
+    }
+    
+    submissions[index].status = status;
+    await fs.writeFile(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2));
+    
+    res.status(200).json({ success: true, message: 'Statut mis à jour', data: submissions[index] });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du statut:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour du statut' });
+  }
+});
+
 // Route par défaut qui sert l'application React
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
