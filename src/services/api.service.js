@@ -1,5 +1,7 @@
 // Endpoint fixe et simplifié — plus de logique complexe source d'erreurs
-const SUBMISSIONS_ENDPOINT = 'https://dmplus-investment-back.onrender.com/api/v1/submissions';
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+const SUBMISSIONS_ENDPOINT = `${API_BASE}/api/v1/submissions`;
 
 export const getSubmissionsFromBackend = async () => {
   const response = await fetch(SUBMISSIONS_ENDPOINT, {

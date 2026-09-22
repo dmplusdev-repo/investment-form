@@ -371,43 +371,66 @@ const Dashboard = ({ onLogout }) => {
   const [fetchError, setFetchError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
 
-  useEffect(() => {
-    fetchSubmissions();
-  }, []);
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = async (page = 0) => {
     setLoading(true);
     setFetchError('');
     try {
-      const baseUrl = API_BASE || 'https://dmplus-investment-back.onrender.com';
-      const url = `${baseUrl}/api/v1/submissions`;
+      const baseUrl = API_BASE;
+      const url = `${baseUrl}/api/v1/submissions?page=${page}&size=${pageSize}&sort=createdAt,desc`;
       console.log('[Admin] Fetch URL:', url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Erreur HTTP ${response.status} - ${response.statusText}`);
       }
       const result = await response.json();
-      if (Array.isArray(result)) {
+      
+      if (result && result.content !== undefined) {
+        setSubmissions(result.content);
+        setCurrentPage(result.currentPage);
+        setTotalPages(result.totalPages);
+        setTotalElements(result.totalElements);
+        setHasNext(result.hasNext);
+        setHasPrevious(result.hasPrevious);
+      } else if (Array.isArray(result)) {
+        // Fallback for older API format
         setSubmissions(result);
+        setTotalElements(result.length);
+        setTotalPages(1);
       } else if (result && result.success !== undefined) {
-        // Fallback in case backend structure changes back
-        if (result.success) setSubmissions(result.data);
-        else setFetchError('Le serveur a retourné une erreur : ' + (result.message || 'inconnue'));
+        if (result.success) {
+          setSubmissions(result.data);
+          setTotalElements(result.data.length);
+          setTotalPages(1);
+        } else {
+          setFetchError('Le serveur a retourné une erreur : ' + (result.message || 'inconnue'));
+        }
       } else {
-        setFetchError('Le serveur a retourné une erreur : ' + (result.message || 'Format de réponse invalide (attendu: tableau)'));
+        setFetchError('Format de réponse invalide');
       }
     } catch (err) {
       console.error('Erreur lors de la récupération des données:', err);
-      const baseUrl = API_BASE || 'https://dmplus-investment-back.onrender.com';
+      const baseUrl = API_BASE;
       setFetchError(`Impossible de contacter le serveur.\n\nDétail : ${err.message}\n\nURL appelée : ${baseUrl}/api/v1/submissions`);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchSubmissions(currentPage);
+  }, [currentPage]);
+
   const updateStatus = async (id, newStatus) => {
     try {
-      const baseUrl = API_BASE || 'https://dmplus-investment-back.onrender.com';
+      const baseUrl = API_BASE;
       const url = `${baseUrl}/api/v1/submissions/${id}/status`;
       
       const response = await fetch(url, {
@@ -508,7 +531,7 @@ const Dashboard = ({ onLogout }) => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button
-            onClick={fetchSubmissions}
+            onClick={() => fetchSubmissions(currentPage)}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
               background: '#ffffff',
@@ -564,7 +587,7 @@ const Dashboard = ({ onLogout }) => {
               icon: <Users style={{ width: '28px', height: '28px', color: '#111827' }} />, 
               iconBg: '#f3f4f6',
               label: 'Total Demandes', 
-              value: submissions.length, 
+              value: totalElements > 0 ? totalElements : submissions.length, 
               accent: '#111827' 
             },
             { 
@@ -664,7 +687,7 @@ const Dashboard = ({ onLogout }) => {
                   {fetchError}
                 </pre>
                 <button
-                  onClick={fetchSubmissions}
+                  onClick={() => fetchSubmissions(currentPage)}
                   style={{
                     background: '#111827', color: '#ffffff', border: 'none',
                     padding: '10px 24px', borderRadius: '6px', cursor: 'pointer',
@@ -854,6 +877,42 @@ const Dashboard = ({ onLogout }) => {
                   </div>
                 );
               })}
+
+              {/* Controls de pagination */}
+              {totalPages > 1 && (
+                <div style={{
+                  padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  borderTop: '1px solid #f3f4f6', background: '#ffffff',
+                }}>
+                  <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: 500 }}>
+                    Affichage {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)} sur {totalElements}
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      disabled={!hasPrevious}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                      style={{
+                        padding: '8px 16px', background: hasPrevious ? '#ffffff' : '#f9fafb',
+                        border: '1px solid #e5e7eb', borderRadius: '6px', cursor: hasPrevious ? 'pointer' : 'not-allowed',
+                        color: hasPrevious ? '#374151' : '#9ca3af', fontSize: '13px', fontWeight: 500,
+                      }}
+                    >
+                      Précédent
+                    </button>
+                    <button
+                      disabled={!hasNext}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      style={{
+                        padding: '8px 16px', background: hasNext ? '#ffffff' : '#f9fafb',
+                        border: '1px solid #e5e7eb', borderRadius: '6px', cursor: hasNext ? 'pointer' : 'not-allowed',
+                        color: hasNext ? '#374151' : '#9ca3af', fontSize: '13px', fontWeight: 500,
+                      }}
+                    >
+                      Suivant
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
